@@ -2,6 +2,7 @@ package pt.unl.fct.di.apdc.firstwebapp.resources;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Logger;
 
 import javax.ws.rs.Consumes;
@@ -18,7 +19,6 @@ import javax.ws.rs.core.Response.Status;
 
 import pt.unl.fct.di.apdc.firstwebapp.util.LoginData;
 import pt.unl.fct.di.apdc.firstwebapp.Authentication.SignatureUtils;
-import pt.unl.fct.di.apdc.firstwebapp.util.AuthToken;
 import pt.unl.fct.di.apdc.firstwebapp.util.UserData;
 
 import com.google.gson.Gson;
@@ -46,14 +46,15 @@ public class LoginResource {
 			return Response.status(Status.FORBIDDEN).entity("Incorrect username or password.").build();
 		}
 		
-		AuthToken s = new AuthToken(data.username, "Viewer");
+		String id = UUID.randomUUID().toString();
+		String signature = SignatureUtils.calculateHMac("key", data.username+"."+ id +"."+"Viewer");
 		
-		if(s.signature == null) {
+		if(signature == null) {
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity("Error while signing token. See logs.").build();
 		}
 		
-		
-		NewCookie cookie = new NewCookie("session::apdc", s.toString(), "/", null, "comment", 1000*60*60*2, false, true);
+		String value =  data.username+"."+ id +"."+"Viewer" + "." + signature;
+		NewCookie cookie = new NewCookie("session::apdc", value, "/", null, "comment", 1000*60*60*2, false, true);
 		
 		return Response.ok().cookie(cookie).build();
 	}
