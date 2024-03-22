@@ -27,12 +27,17 @@ import com.google.gson.Gson;
 @Path("/login")
 @Produces(MediaType.APPLICATION_JSON + ";charset=utf-8")
 public class LoginResource {
-
+	
+	//Settings that must be in the database
+	public static final String ADMIN = "Admin";
+	public static final String BACKOFFICE = "Backoffice";
+	public static final String REGULAR = "Regular";
+	private static final String key = "dhsjfhndkjvnjdsdjhfkjdsjfjhdskjhfkjsdhfhdkjhkfajkdkajfhdkmc";	
+		
+	public static Map<String, UserData> users = new HashMap<String, UserData>();
 	
 	private static final Logger LOG = Logger.getLogger(LoginResource.class.getName());
 	private final Gson g = new Gson();
-	
-	public static Map<String, UserData> users = new HashMap<String, UserData>();
 	
 	public LoginResource() {}
 	
@@ -47,40 +52,48 @@ public class LoginResource {
 		}
 		
 		String id = UUID.randomUUID().toString();
-		String signature = SignatureUtils.calculateHMac("key", data.username+"."+ id +"."+"Viewer");
+		long currentTime = System.currentTimeMillis();
+		String fields = data.username+"."+ id +"."+REGULAR+"."+currentTime+"."+1000*60*60*2;
+		
+		String signature = SignatureUtils.calculateHMac(key, fields);
 		
 		if(signature == null) {
 			return Response.status(Status.INTERNAL_SERVER_ERROR).entity("Error while signing token. See logs.").build();
 		}
 		
-		String value =  data.username+"."+ id +"."+"Viewer" + "." + signature;
+		String value =  fields + "." + signature;
 		NewCookie cookie = new NewCookie("session::apdc", value, "/", null, "comment", 1000*60*60*2, false, true);
 		
 		return Response.ok().cookie(cookie).build();
 	}
 			
-	public static boolean checkPermissions(Cookie cookie, String user, String role) {
+	public static boolean checkPermissions(Cookie cookie, String role) {
 		if (cookie == null || cookie.getValue() == null) {
 			return false;
 		}
-		
+
 		String value = cookie.getValue();
 		String[] values = value.split("\\.");
 	
-		String signatureNew = SignatureUtils.calculateHMac("key", values[0]+"."+values[1]+"."+values[2]);
-		String signatureOld = values[3];
-			
+		String signatureNew = SignatureUtils.calculateHMac(key, values[0]+"."+values[1]+"."+values[2]+"."+values[3]+"."+values[4]);
+		String signatureOld = values[5];
+					
 		if(!signatureNew.equals(signatureOld)) {
 			return false;
 		}
-	
-		
+
 		int neededRole = convertRole(role);
-		int userInSessionRole = convertRole(values[3]);
+		int userInSessionRole = convertRole(values[2]);
 		
 		if(userInSessionRole < neededRole) {
 			return false;
 		}
+		
+		if(System.currentTimeMillis() > (Long.valueOf(values[3]) + Long.valueOf(values[4])*1000)) {
+			
+			return false;
+		}
+		
 			
 		return true;
 	}
@@ -99,13 +112,13 @@ public class LoginResource {
 		int result = 0;
 		
 		switch(role) {
-			case "Editor":
+			case BACKOFFICE:
 				result = 1;
 				break;
-			case "Admin":
+			case ADMIN:
 				result = 2;
 				break;
-			case "Viewer":
+			case REGULAR:
 				result = 0;
 				break;
 			default:

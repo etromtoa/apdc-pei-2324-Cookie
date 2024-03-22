@@ -1,5 +1,6 @@
 package pt.unl.fct.di.apdc.firstwebapp.Authentication;
 
+import java.util.Base64;
 import java.util.logging.Logger;
 
 import javax.crypto.Mac;
@@ -18,7 +19,7 @@ public class SignatureUtils {
             Mac sha256_HMAC = Mac.getInstance(ALGORITHM);
             sha256_HMAC.init(secret_key);
             
-            return byteArrayToHex(sha256_HMAC.doFinal(data.getBytes("UTF-8")));
+            return base64Enconder(sha256_HMAC.doFinal(data.getBytes("UTF-8")));
     	} catch(Exception e) {
     		LOG.severe("Error while signing. " + e.toString());
     	}
@@ -27,10 +28,16 @@ public class SignatureUtils {
         return null;
     }
 
-    public static String byteArrayToHex(byte[] a) {
-        StringBuilder sb = new StringBuilder(a.length * 2);
-        for(byte b: a)
+    public static String byteArrayToHex(byte[] str) {
+        StringBuilder sb = new StringBuilder(str.length * 2);
+        for(byte b: str)
             sb.append(String.format("%02x", b));
         return sb.toString();
     }
+    
+    public static String base64Enconder(byte[] str) {
+    	String encodedString = Base64.getEncoder().encodeToString(str);
+    	return encodedString;
+    }
+  
 }
